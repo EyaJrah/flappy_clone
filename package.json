@@ -1,0 +1,24 @@
+{
+  "name": "flappy-clone",
+  "version": "1.0.0",
+  "description": "A Flappy Bird clone game",
+  "main": "game.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EyaJrah/flappy_clone.git"
+  },
+  "keywords": [
+    "game",
+    "flappy-bird",
+    "javascript"
+  ],
+  "author": "EyaJrah",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/EyaJrah/flappy_clone/issues"
+  },
+  "homepage": "https://github.com/EyaJrah/flappy_clone#readme"
+} 
