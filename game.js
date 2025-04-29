@@ -16,19 +16,17 @@
  * - Smooth bird rotation animations
  */
 
-var game = new Phaser.Game(400, 490, Phaser.AUTO, 'game');
-
 var mainState = {
     /**
      * Preload game assets and set initial configurations
      * Loads bird and pipe images, sets background color
      */
     preload: function() { 
-        game.stage.backgroundColor = '#FF6A5E';
-        bird = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEXSvicAAABogyUZAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
-        pipe = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEV0vy4AAADnrrHQAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
-        game.load.image('bird', bird);  
-        game.load.image('pipe', pipe); 
+        this.game.stage.backgroundColor = '#FF6A5E';
+        this.bird = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEXSvicAAABogyUZAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
+        this.pipe = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEV0vy4AAADnrrHQAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
+        this.game.load.image('bird', this.bird);  
+        this.game.load.image('pipe', this.pipe); 
     },
 
     /**
@@ -36,15 +34,15 @@ var mainState = {
      * Sets up physics, creates bird and pipes, initializes controls and score
      */
     create: function() { 
-        game.physics.startSystem(Phaser.Physics.ARCADE);
+        this.game.physics.startSystem(Phaser.Physics.ARCADE);
 
-        this.pipes = game.add.group();
+        this.pipes = this.game.add.group();
         this.pipes.enableBody = true;
         this.pipes.createMultiple(20, 'pipe');  
         this.timer = this.game.time.events.loop(1500, this.addRowOfPipes, this);           
 
         this.bird = this.game.add.sprite(100, 245, 'bird');
-        game.physics.arcade.enable(this.bird);
+        this.game.physics.arcade.enable(this.bird);
         this.bird.body.gravity.y = 1000; 
 
         // New anchor position
@@ -68,7 +66,7 @@ var mainState = {
         if (this.bird.inWorld == false)
             this.restartGame(); 
 
-        game.physics.arcade.overlap(this.bird, this.pipes, this.hitPipe, null, this); 
+        this.game.physics.arcade.overlap(this.bird, this.pipes, this.hitPipe, null, this); 
 
         // Rotate the bird    
         if (this.bird.angle < 20)
@@ -87,8 +85,7 @@ var mainState = {
         this.bird.body.velocity.y = -350;
 
         // Jump animation
-        game.add.tween(this.bird).to({angle: -20}, 100).start();
-
+        this.game.add.tween(this.bird).to({angle: -20}, 100).start();
     },
 
     /**
@@ -117,7 +114,7 @@ var mainState = {
      * Resets game state to initial conditions
      */
     restartGame: function() {
-        game.state.start('main');
+        this.game.state.start('main');
     },
 
     /**
@@ -150,5 +147,12 @@ var mainState = {
     },
 };
 
-game.state.add('main', mainState);  
-game.state.start('main'); 
+// Export mainState for testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = mainState;
+} else {
+    // Only initialize the game in browser environment
+    var game = new Phaser.Game(400, 490, Phaser.AUTO, 'game');
+    game.state.add('main', mainState);
+    game.state.start('main');
+} 
