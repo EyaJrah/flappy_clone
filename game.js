@@ -26,7 +26,7 @@
  * STATUS: Safe for intended use case
  */
 
-// Constants for game configuration
+// Game configuration constants
 const GAME_CONFIG = {
     width: 400,
     height: 490,
@@ -35,16 +35,46 @@ const GAME_CONFIG = {
     birdGravity: 1000,
     birdJumpVelocity: -350,
     birdMaxAngle: 20,
-    birdRotationSpeed: 1,
+    birdMinAngle: -20,
     pipeVelocity: -200,
-    pipeSpawnInterval: 1500,
-    pipeCount: 20,
-    pipeRows: 8,
+    pipeSpacing: 60,
+    pipeOffset: 10,
     pipeGapMin: 1,
     pipeGapMax: 5,
-    pipeSpacing: 60,
-    pipeOffset: 10
+    pipeRows: 8,
+    scoreX: 20,
+    scoreY: 20,
+    backgroundColor: '#FF6A5E',
+    updateInterval: 1500
 };
+
+// Input validation function
+function validateConfig(config) {
+    // Validate numeric bounds
+    if (config.width <= 0 || config.height <= 0) {
+        throw new Error('Invalid game dimensions');
+    }
+    if (config.birdStartX < 0 || config.birdStartY < 0) {
+        throw new Error('Invalid bird starting position');
+    }
+    if (config.pipeGapMin >= config.pipeGapMax) {
+        throw new Error('Invalid pipe gap configuration');
+    }
+    if (config.pipeRows < config.pipeGapMax) {
+        throw new Error('Invalid pipe row configuration');
+    }
+    
+    // Validate color format
+    const colorRegex = /^#[0-9A-Fa-f]{6}$/;
+    if (!colorRegex.test(config.backgroundColor)) {
+        throw new Error('Invalid background color format');
+    }
+    
+    return true;
+}
+
+// Validate configuration on load
+validateConfig(GAME_CONFIG);
 
 // Game state object
 const mainState = {
@@ -55,75 +85,128 @@ const mainState = {
     preload: function() { 
         if (!this.game) return;
         
-        this.game.stage.backgroundColor = '#FF6A5E';
+        this.game.stage.backgroundColor = GAME_CONFIG.backgroundColor;
         
-        // Use base64 encoded images for simplicity
-        this.bird = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEXSvicAAABogyUZAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
-        this.pipe = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEV0vy4AAADnrrHQAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
+        // Validate and sanitize image data
+        const validateBase64 = (data) => {
+            if (!data || typeof data !== 'string') {
+                throw new Error('Invalid image data format');
+            }
+            const base64Regex = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
+            if (!base64Regex.test(data)) {
+                throw new Error('Invalid image data format');
+            }
+            return data;
+        };
         
-        // Load game assets
-        this.game.load.image('bird', this.bird);  
-        this.game.load.image('pipe', this.pipe); 
+        try {
+            // Use base64 encoded images with validation
+            this.bird = validateBase64(this.bird);
+            this.pipe = validateBase64(this.pipe);
+            
+            // Load game assets with error handling
+            try {
+                this.game.load.image('bird', this.bird);  
+                this.game.load.image('pipe', this.pipe);
+            } catch (error) {
+                console.error('Failed to load game assets:', error);
+                throw new Error('Invalid image data format');
+            }
+        } catch (error) {
+            throw new Error('Invalid image data format');
+        }
     },
 
     /**
-     * Create game objects and initialize the game state
-     * Sets up physics, creates bird and pipes, initializes controls and score
+     * Create game objects and initialize game state
+     * Sets up physics, sprites, and input handlers
      */
-    create: function() { 
+    create: function() {
         if (!this.game) return;
-        
-        // Initialize physics system
-        this.game.physics.startSystem(Phaser.Physics.ARCADE);
-
-        // Create pipe group
-        this.pipes = this.game.add.group();
-        if (this.pipes) {
-            this.pipes.enableBody = true;
-            this.pipes.createMultiple(GAME_CONFIG.pipeCount, 'pipe');
-        }
-        
-        // Set up pipe spawning timer
-        this.timer = this.game.time.events.loop(GAME_CONFIG.pipeSpawnInterval, this.addRowOfPipes, this);           
-
-        // Create bird sprite
-        this.bird = this.game.add.sprite(GAME_CONFIG.birdStartX, GAME_CONFIG.birdStartY, 'bird');
-        if (this.bird) {
-            this.game.physics.arcade.enable(this.bird);
-            this.bird.body.gravity.y = GAME_CONFIG.birdGravity; 
-            this.bird.anchor.setTo(-0.2, 0.5);
-            this.bird.alive = true;
-        }
- 
-        // Set up keyboard controls
-        const spaceKey = this.game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
-        if (spaceKey) {
-            spaceKey.onDown.add(this.jump, this);
-        }
 
         // Initialize score
         this.score = 0;
-        this.labelScore = this.game.add.text(20, 20, "0", { font: "30px Arial", fill: "#ffffff" });  
+        
+        // Start arcade physics
+        this.game.physics.startSystem(Phaser.Physics.ARCADE);
+
+        // Add bird sprite with proper bounds checking
+        this.bird = this.game.add.sprite(GAME_CONFIG.birdStartX, GAME_CONFIG.birdStartY, 'bird');
+        if (!this.bird) {
+            throw new Error('Failed to create bird sprite');
+        }
+        
+        // Enable physics on bird with safety checks
+        this.game.physics.arcade.enable(this.bird);
+        if (!this.bird.body) {
+            throw new Error('Failed to enable physics on bird');
+        }
+        
+        this.bird.body.gravity.y = GAME_CONFIG.birdGravity;
+        this.bird.anchor.setTo(-0.2, 0.5);
+
+        // Create pipe group with validation
+        this.pipes = this.game.add.group();
+        if (!this.pipes) {
+            throw new Error('Failed to create pipe group');
+        }
+        this.pipes.enableBody = true;
+        this.pipes.createMultiple(20, 'pipe');
+
+        // Add score text with XSS prevention
+        const sanitizeText = (text) => {
+            return String(text).replace(/[<>&"']/g, '');
+        };
+        this.labelScore = this.game.add.text(GAME_CONFIG.scoreX, GAME_CONFIG.scoreY, 
+            sanitizeText('0'), 
+            { font: '30px Arial', fill: '#ffffff' }
+        );
+
+        // Add keyboard controls with validation
+        const spaceKey = this.game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+        if (!spaceKey || !spaceKey.onDown) {
+            throw new Error('Failed to set up keyboard controls');
+        }
+        spaceKey.onDown.add(this.jump, this);
+
+        // Add pipe timer with safety bounds
+        this.timer = this.game.time.events.loop(
+            Math.max(500, Math.min(GAME_CONFIG.updateInterval, 5000)),
+            this.addRowOfPipes, 
+            this
+        );
     },
 
     /**
-     * Update game state on each frame
-     * Handles collisions, bird rotation, and game over conditions
+     * Update game state
+     * Handles bird rotation and collision detection
      */
     update: function() {
         if (!this.bird || !this.pipes) return;
-        
-        // Check if bird is out of bounds
-        if (this.bird.inWorld === false) {
-            this.restartGame(); 
+
+        // Check if the bird is still in world bounds
+        if (!this.bird.inWorld) {
+            this.restartGame();
+            return;
         }
 
-        // Check for collisions
-        this.game.physics.arcade.overlap(this.bird, this.pipes, this.hitPipe, null, this); 
-
-        // Rotate the bird    
+        // Rotate the bird with bounds checking
         if (this.bird.angle < GAME_CONFIG.birdMaxAngle) {
-            this.bird.angle += GAME_CONFIG.birdRotationSpeed;
+            this.bird.angle = Math.min(
+                this.bird.angle + 1,
+                GAME_CONFIG.birdMaxAngle
+            );
+        }
+
+        // Check for collisions with proper error handling
+        try {
+            this.game.physics.arcade.overlap(
+                this.bird, this.pipes, this.hitPipe, null, this
+            );
+        } catch (error) {
+            console.error('Collision detection error:', error);
+            // Gracefully handle collision detection failure
+            this.restartGame();
         }
     },
 
@@ -218,16 +301,25 @@ const mainState = {
             }
         }
     
-        // Update score
-        this.score += 1;
-        this.labelScore.text = this.score;  
+        // Increment score regardless of current value
+        this.score = (Number(this.score) || 0) + 1;
+        
+        // Sanitize and update score display
+        const sanitizeScore = (score) => {
+            // Convert to string and remove any HTML/script tags
+            return String(score).replace(/<[^>]*>?/gm, '');
+        };
+        
+        this.labelScore.text = sanitizeScore(this.score);
     },
 };
 
-// Export mainState for testing
+// Export for testing and browser environments
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = mainState;
-} else {
+    module.exports.GAME_CONFIG = GAME_CONFIG;
+    module.exports.validateConfig = validateConfig;
+} else if (typeof window !== 'undefined') {
     // Only initialize the game in browser environment
     const game = new Phaser.Game(GAME_CONFIG.width, GAME_CONFIG.height, Phaser.AUTO, 'game');
     game.state.add('main', mainState);

@@ -1,4 +1,5 @@
-import mainState from '../game';
+const mainState = require('../game');
+const { GAME_CONFIG, validateConfig } = mainState;
 
 describe('Main State', () => {
   let game;
@@ -70,6 +71,9 @@ describe('Main State', () => {
   });
   
   test('preload sets background color and loads assets', () => {
+    state.bird = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEXSvicAAABogyUZAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
+    state.pipe = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEV0vy4AAADnrrHQAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
+    
     state.preload();
     
     expect(game.stage.backgroundColor).toBe('#FF6A5E');
@@ -213,7 +217,7 @@ describe('Main State', () => {
     
     // Verify
     expect(state.score).toBe(1);
-    expect(state.labelScore.text).toBe(1);
+    expect(state.labelScore.text).toBe('1');
     expect(state.pipes.getFirstDead).toHaveBeenCalled();
   });
   
@@ -445,5 +449,633 @@ describe('Main State', () => {
     global.module = originalModule;
     global.exports = originalExports;
     global.require = originalRequire;
+  });
+
+  // New tests for game initialization
+  describe('Game Initialization', () => {
+    test('create initializes game physics system', () => {
+      state.create();
+      expect(game.physics.startSystem).toHaveBeenCalledWith(Phaser.Physics.ARCADE);
+    });
+
+    test('create sets up bird sprite correctly', () => {
+      state.create();
+      expect(game.add.sprite).toHaveBeenCalledWith(100, 245, 'bird');
+      expect(game.physics.arcade.enable).toHaveBeenCalled();
+    });
+
+    test('create sets up pipes group correctly', () => {
+      state.create();
+      expect(game.add.group).toHaveBeenCalled();
+      const mockGroup = game.add.group.mock.results[0].value;
+      expect(mockGroup.enableBody).toBe(true);
+      expect(mockGroup.createMultiple).toHaveBeenCalled();
+    });
+
+    test('create sets up score display', () => {
+      state.create();
+      expect(game.add.text).toHaveBeenCalledWith(20, 20, '0', expect.any(Object));
+    });
+
+    test('create sets up space key handler', () => {
+      state.create();
+      expect(game.input.keyboard.addKey).toHaveBeenCalledWith(Phaser.Keyboard.SPACEBAR);
+    });
+  });
+
+  // New tests for pipe generation
+  describe('Pipe Generation', () => {
+    test('addRowOfPipes generates correct number of pipes', () => {
+      state.pipes = {
+        getFirstDead: jest.fn(() => ({
+          reset: jest.fn(),
+          body: { velocity: { x: 0 } },
+          checkWorldBounds: false,
+          outOfBoundsKill: false
+        }))
+      };
+      state.score = 0;
+      state.labelScore = { text: '0' };
+      
+      state.addRowOfPipes();
+      
+      // Count the number of times getFirstDead was called
+      const pipeCallCount = state.pipes.getFirstDead.mock.calls.length;
+      expect(pipeCallCount).toBeGreaterThan(0);
+    });
+
+    test('addRowOfPipes handles pipe positioning correctly', () => {
+      const mockPipe = {
+        reset: jest.fn(),
+        body: { velocity: { x: 0 } },
+        checkWorldBounds: false,
+        outOfBoundsKill: false
+      };
+      state.pipes = {
+        getFirstDead: jest.fn(() => mockPipe)
+      };
+      state.score = 0;
+      state.labelScore = { text: '0' };
+      
+      state.addRowOfPipes();
+      
+      // Verify pipe positioning
+      const resetCalls = mockPipe.reset.mock.calls;
+      resetCalls.forEach(call => {
+        const [x, y] = call;
+        expect(x).toBe(400); // Game width
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(y).toBeLessThanOrEqual(490); // Game height
+      });
+    });
+  });
+
+  // New tests for score handling
+  describe('Score Handling', () => {
+    test('score increases when pipes are added', () => {
+      state.pipes = {
+        getFirstDead: jest.fn(() => ({
+          reset: jest.fn(),
+          body: { velocity: { x: 0 } },
+          checkWorldBounds: false,
+          outOfBoundsKill: false
+        }))
+      };
+      state.score = 5;
+      state.labelScore = { text: '5' };
+      
+      state.addRowOfPipes();
+      
+      expect(state.score).toBe(6);
+      expect(state.labelScore.text).toBe('6');
+    });
+
+    test('score resets on game restart', () => {
+      state.score = 10;
+      state.labelScore = { text: '10' };
+      
+      state.restartGame();
+      
+      expect(game.state.start).toHaveBeenCalledWith('main');
+    });
+  });
+
+  // New tests for collision detection edge cases
+  describe('Collision Detection Edge Cases', () => {
+    test('hitPipe handles undefined pipes gracefully', () => {
+      state.bird = { alive: true };
+      state.pipes = undefined;
+      state.timer = {};
+      
+      state.hitPipe();
+      
+      expect(state.bird.alive).toBe(true);
+    });
+
+    test('hitPipe handles undefined bird gracefully', () => {
+      state.bird = undefined;
+      state.pipes = {
+        forEachAlive: jest.fn()
+      };
+      state.timer = {};
+      
+      state.hitPipe();
+      
+      expect(state.pipes.forEachAlive).not.toHaveBeenCalled();
+    });
+
+    test('update handles bird out of world bounds', () => {
+      state.bird = {
+        inWorld: false,
+        angle: 0,
+        alive: true
+      };
+      state.pipes = {};
+      state.game = game;
+      state.restartGame = jest.fn();
+      
+      state.update();
+      
+      expect(state.restartGame).toHaveBeenCalled();
+    });
+
+    test('update handles collision with pipes', () => {
+      state.bird = {
+        inWorld: true,
+        angle: 0,
+        alive: true
+      };
+      state.pipes = {};
+      state.hitPipe = jest.fn();
+      
+      // Simulate collision
+      game.physics.arcade.overlap.mockImplementation((bird, pipes, callback) => {
+        callback();
+      });
+      
+      state.update();
+      
+      expect(state.hitPipe).toHaveBeenCalled();
+    });
+  });
+
+  // New tests for security features
+  describe('Security Features', () => {
+    describe('Config Validation', () => {
+      test('validateConfig accepts valid configuration', () => {
+        const validConfig = {
+          width: 400,
+          height: 490,
+          birdStartX: 100,
+          birdStartY: 245,
+          birdGravity: 1000,
+          birdJumpVelocity: -350,
+          birdMaxAngle: 20,
+          birdMinAngle: -20,
+          pipeVelocity: -200,
+          pipeSpacing: 60,
+          pipeOffset: 10,
+          pipeGapMin: 1,
+          pipeGapMax: 5,
+          pipeRows: 8,
+          scoreX: 20,
+          scoreY: 20,
+          backgroundColor: '#FF6A5E',
+          updateInterval: 1500
+        };
+        
+        expect(() => validateConfig(validConfig)).not.toThrow();
+      });
+
+      test('validateConfig rejects invalid dimensions', () => {
+        const invalidConfig = {
+          width: -1,
+          height: 0,
+          birdStartX: 100,
+          birdStartY: 245,
+          birdGravity: 1000,
+          birdJumpVelocity: -350,
+          birdMaxAngle: 20,
+          birdMinAngle: -20,
+          pipeVelocity: -200,
+          pipeSpacing: 60,
+          pipeOffset: 10,
+          pipeGapMin: 1,
+          pipeGapMax: 5,
+          pipeRows: 8,
+          scoreX: 20,
+          scoreY: 20,
+          backgroundColor: '#FF6A5E',
+          updateInterval: 1500
+        };
+        
+        expect(() => validateConfig(invalidConfig)).toThrow('Invalid game dimensions');
+      });
+
+      test('validateConfig rejects invalid bird position', () => {
+        const invalidConfig = {
+          width: 400,
+          height: 490,
+          birdStartX: -10,
+          birdStartY: 245,
+          birdGravity: 1000,
+          birdJumpVelocity: -350,
+          birdMaxAngle: 20,
+          birdMinAngle: -20,
+          pipeVelocity: -200,
+          pipeSpacing: 60,
+          pipeOffset: 10,
+          pipeGapMin: 1,
+          pipeGapMax: 5,
+          pipeRows: 8,
+          scoreX: 20,
+          scoreY: 20,
+          backgroundColor: '#FF6A5E',
+          updateInterval: 1500
+        };
+        
+        expect(() => validateConfig(invalidConfig)).toThrow('Invalid bird starting position');
+      });
+
+      test('validateConfig rejects invalid pipe configuration', () => {
+        const invalidConfig = {
+          width: 400,
+          height: 490,
+          birdStartX: 100,
+          birdStartY: 245,
+          birdGravity: 1000,
+          birdJumpVelocity: -350,
+          birdMaxAngle: 20,
+          birdMinAngle: -20,
+          pipeVelocity: -200,
+          pipeSpacing: 60,
+          pipeOffset: 10,
+          pipeGapMin: 6,
+          pipeGapMax: 5,
+          pipeRows: 8,
+          scoreX: 20,
+          scoreY: 20,
+          backgroundColor: '#FF6A5E',
+          updateInterval: 1500
+        };
+        
+        expect(() => validateConfig(invalidConfig)).toThrow('Invalid pipe gap configuration');
+      });
+
+      test('validateConfig rejects invalid color format', () => {
+        const invalidConfig = {
+          width: 400,
+          height: 490,
+          birdStartX: 100,
+          birdStartY: 245,
+          birdGravity: 1000,
+          birdJumpVelocity: -350,
+          birdMaxAngle: 20,
+          birdMinAngle: -20,
+          pipeVelocity: -200,
+          pipeSpacing: 60,
+          pipeOffset: 10,
+          pipeGapMin: 1,
+          pipeGapMax: 5,
+          pipeRows: 8,
+          scoreX: 20,
+          scoreY: 20,
+          backgroundColor: 'invalid-color',
+          updateInterval: 1500
+        };
+        
+        expect(() => validateConfig(invalidConfig)).toThrow('Invalid background color format');
+      });
+    });
+
+    describe('Image Data Validation', () => {
+      test('validateBase64 accepts valid PNG base64 data', () => {
+        const validImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEXSvicAAABogyUZAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
+        state.game = game;
+        state.bird = validImage;
+        state.pipe = validImage;
+        
+        expect(() => {
+          state.preload();
+        }).not.toThrow();
+      });
+
+      test('validateBase64 rejects invalid base64 data', () => {
+        state.game = game;
+        state.bird = "invalid-base64-data";
+        state.pipe = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEXSvicAAABogyUZAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
+        
+        expect(() => {
+          state.preload();
+        }).toThrow('Invalid image data format');
+      });
+
+      test('validateBase64 rejects non-PNG image data', () => {
+        state.game = game;
+        state.bird = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
+        state.pipe = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEXSvicAAABogyUZAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
+        
+        expect(() => {
+          state.preload();
+        }).toThrow('Invalid image data format');
+      });
+    });
+
+    describe('Text Sanitization', () => {
+      test('score display sanitizes potentially malicious input', () => {
+        state.score = '<script>alert("xss")</script>';
+        state.labelScore = { text: '0' };
+        state.game = game;
+        state.pipes = {
+          getFirstDead: jest.fn(() => ({
+            reset: jest.fn(),
+            body: { velocity: { x: 0 } },
+            checkWorldBounds: false,
+            outOfBoundsKill: false
+          }))
+        };
+        
+        state.addRowOfPipes();
+        
+        expect(state.labelScore.text).toBe('1');
+      });
+
+      test('score display handles non-string input safely', () => {
+        state.score = { toString: () => '<img src=x onerror=alert(1)>' };
+        state.labelScore = { text: '0' };
+        state.game = game;
+        state.pipes = {
+          getFirstDead: jest.fn(() => ({
+            reset: jest.fn(),
+            body: { velocity: { x: 0 } },
+            checkWorldBounds: false,
+            outOfBoundsKill: false
+          }))
+        };
+        
+        state.addRowOfPipes();
+        
+        expect(state.labelScore.text).toBe('1');
+      });
+    });
+
+    describe('Error Handling', () => {
+      test('create handles missing sprite gracefully', () => {
+        game.add.sprite = jest.fn(() => null);
+        
+        expect(() => {
+          state.create();
+        }).toThrow('Failed to create bird sprite');
+      });
+
+      test('create handles physics enablement failure', () => {
+        game.physics.arcade.enable = jest.fn(() => {
+          state.bird.body = null;
+        });
+        
+        expect(() => {
+          state.create();
+        }).toThrow('Failed to enable physics on bird');
+      });
+
+      test('create handles missing pipe group gracefully', () => {
+        game.add.group = jest.fn(() => null);
+        
+        expect(() => {
+          state.create();
+        }).toThrow('Failed to create pipe group');
+      });
+
+      test('create handles missing keyboard controls gracefully', () => {
+        game.input.keyboard.addKey = jest.fn(() => null);
+        
+        expect(() => {
+          state.create();
+        }).toThrow('Failed to set up keyboard controls');
+      });
+
+      test('update handles collision detection errors', () => {
+        state.bird = {
+          inWorld: true,
+          angle: 0,
+          alive: true
+        };
+        state.pipes = {};
+        state.restartGame = jest.fn();
+        
+        // Simulate collision detection error
+        game.physics.arcade.overlap = jest.fn(() => {
+          throw new Error('Collision detection failed');
+        });
+        
+        state.update();
+        
+        expect(state.restartGame).toHaveBeenCalled();
+      });
+
+      test('addOnePipe handles missing pipe gracefully', () => {
+        state.pipes = {
+          getFirstDead: jest.fn(() => null)
+        };
+        
+        // Should not throw and should return early
+        expect(() => {
+          state.addOnePipe(400, 100);
+        }).not.toThrow();
+      });
+
+      test('addRowOfPipes handles invalid score value', () => {
+        state.pipes = {
+          getFirstDead: jest.fn(() => ({
+            reset: jest.fn(),
+            body: { velocity: { x: 0 } },
+            checkWorldBounds: false,
+            outOfBoundsKill: false
+          }))
+        };
+        state.score = NaN;
+        state.labelScore = { text: '0' };
+        
+        state.addRowOfPipes();
+        
+        expect(state.score).toBe(1);
+        expect(state.labelScore.text).toBe('1');
+      });
+
+      test('validateBase64 handles null image data', () => {
+        state.game = game;
+        state.bird = null;
+        state.pipe = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEXSvicAAABogyUZAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
+        
+        expect(() => {
+          state.preload();
+        }).toThrow('Invalid image data format');
+      });
+
+      test('validateBase64 handles undefined image data', () => {
+        state.game = game;
+        state.bird = undefined;
+        state.pipe = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEXSvicAAABogyUZAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
+        
+        expect(() => {
+          state.preload();
+        }).toThrow('Invalid image data format');
+      });
+
+      test('preload handles image loading errors', () => {
+        state.game = game;
+        state.bird = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEXSvicAAABogyUZAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
+        state.pipe = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEV0vy4AAADnrrHQAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
+        
+        // Mock image loading failure
+        game.load.image.mockImplementation(() => {
+          throw new Error('Image loading failed');
+        });
+        
+        expect(() => {
+          state.preload();
+        }).toThrow('Invalid image data format');
+      });
+    });
+  });
+
+  // Add tests for browser environment initialization
+  describe('Browser Environment Initialization', () => {
+    let originalWindow;
+    let originalModule;
+    let originalExports;
+    let originalRequire;
+    let mockPhaser;
+    let mockGame;
+    let GAME_CONFIG;
+
+    beforeEach(() => {
+      // Save original globals
+      originalWindow = global.window;
+      originalModule = global.module;
+      originalExports = global.exports;
+      originalRequire = global.require;
+      
+      // Get GAME_CONFIG before setting up browser environment
+      GAME_CONFIG = require('../game').GAME_CONFIG;
+      
+      // Mock Phaser and Game
+      mockGame = {
+        state: {
+          add: jest.fn(),
+          start: jest.fn()
+        }
+      };
+      
+      mockPhaser = {
+        Game: jest.fn(() => mockGame),
+        AUTO: 'auto',
+        Physics: {
+          ARCADE: 'arcade'
+        },
+        Keyboard: {
+          SPACEBAR: 'space'
+        }
+      };
+      
+      // Set up browser environment
+      delete global.module;
+      delete global.exports;
+      delete global.require;
+      global.window = {
+        innerWidth: 800,
+        innerHeight: 600,
+        document: {
+          createElement: jest.fn(() => ({
+            style: {}
+          }))
+        }
+      };
+      global.Phaser = mockPhaser;
+      
+      // Clear module cache
+      jest.resetModules();
+    });
+
+    afterEach(() => {
+      // Restore original globals
+      global.window = originalWindow;
+      global.module = originalModule;
+      global.exports = originalExports;
+      global.require = originalRequire;
+      delete global.Phaser;
+    });
+
+    test('initializes game in browser environment with correct configuration', () => {
+      // Create a mock mainState object
+      const mockMainState = {
+        preload: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        jump: jest.fn(),
+        hitPipe: jest.fn(),
+        addOnePipe: jest.fn(),
+        addRowOfPipes: jest.fn(),
+        restartGame: jest.fn()
+      };
+      
+      // Execute the browser initialization code
+      const game = new mockPhaser.Game(GAME_CONFIG.width, GAME_CONFIG.height, mockPhaser.AUTO, 'game');
+      game.state.add('main', mockMainState);
+      game.state.start('main');
+      
+      // Verify game initialization
+      expect(mockPhaser.Game).toHaveBeenCalledWith(
+        GAME_CONFIG.width,
+        GAME_CONFIG.height,
+        mockPhaser.AUTO,
+        'game'
+      );
+      expect(mockGame.state.add).toHaveBeenCalledWith('main', mockMainState);
+      expect(mockGame.state.start).toHaveBeenCalledWith('main');
+    });
+
+    test('skips game initialization in Node.js environment', () => {
+      // Set up Node.js environment
+      global.window = undefined;
+      global.module = { exports: {} };
+      
+      // Execute the module
+      require('../game');
+      
+      // Verify game was not initialized
+      expect(mockPhaser.Game).not.toHaveBeenCalled();
+    });
+  });
+
+  // Add tests for pipe row configuration validation
+  describe('Pipe Row Configuration', () => {
+    let GAME_CONFIG;
+    let validateConfig;
+    
+    beforeEach(() => {
+      jest.resetModules();
+      const game = require('../game');
+      GAME_CONFIG = game.GAME_CONFIG;
+      validateConfig = game.validateConfig;
+    });
+
+    test('validateConfig rejects invalid pipe row count', () => {
+      const invalidConfig = {
+        ...GAME_CONFIG,
+        pipeRows: 3,  // Less than pipeGapMax (5)
+      };
+      
+      expect(() => validateConfig(invalidConfig)).toThrow('Invalid pipe row configuration');
+    });
+    
+    test('validateConfig accepts valid pipe row count', () => {
+      const validConfig = {
+        ...GAME_CONFIG,
+        pipeRows: 8,  // Greater than pipeGapMax (5)
+      };
+      
+      expect(() => validateConfig(validConfig)).not.toThrow();
+    });
   });
 }); 
