@@ -1,11 +1,19 @@
 /**
  * Flappy Bird Clone
  * A simple implementation of the classic Flappy Bird game using Phaser.js
- * Features:
- * - Bird physics and controls
- * - Pipe obstacles
- * - Score tracking
+ * 
+ * Game Mechanics:
+ * - Press SPACEBAR to make the bird jump
+ * - Avoid hitting the pipes
+ * - Score increases for each pipe passed
+ * - Game ends when bird hits a pipe or falls out of bounds
+ * 
+ * Technical Features:
+ * - Bird physics and controls using Phaser.js physics engine
+ * - Procedurally generated pipe obstacles
+ * - Score tracking and display
  * - Game over and restart functionality
+ * - Smooth bird rotation animations
  */
 
 var game = new Phaser.Game(400, 490, Phaser.AUTO, 'game');
