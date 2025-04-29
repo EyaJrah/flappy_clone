@@ -1,3 +1,13 @@
+/**
+ * Flappy Bird Clone
+ * A simple implementation of the classic Flappy Bird game using Phaser.js
+ * Features:
+ * - Bird physics and controls
+ * - Pipe obstacles
+ * - Score tracking
+ * - Game over and restart functionality
+ */
+
 var game = new Phaser.Game(400, 490, Phaser.AUTO, 'game');
 
 var mainState = {
