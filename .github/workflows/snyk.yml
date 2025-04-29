@@ -23,6 +23,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
       - name: Run Snyk and save report
         run: snyk test --json > snyk_report.json
         env:
@@ -37,6 +40,6 @@ jobs:
 
       - name: Monitor project in Snyk
         if: github.event_name == 'push'
-        run: snyk monitor --org=eyajrah
+        run: snyk monitor --org=your-org-name
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
