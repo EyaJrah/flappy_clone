@@ -19,6 +19,22 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
+          cache: 'npm'
+
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Cache SonarScanner
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/work/_temp/sonar-scanner-cli-7.0.2.4839-Linux-X64
+          key: ${{ runner.os }}-sonar-scanner-7.0.2.4839
+          restore-keys: |
+            ${{ runner.os }}-sonar-scanner-
 
       - name: Install dependencies
         run: npm install
