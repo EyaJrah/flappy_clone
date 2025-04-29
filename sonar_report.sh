@@ -1,7 +1,18 @@
 #!/bin/bash
 
-# SonarCloud token and project key
-SONAR_TOKEN="8f9a5fdf5cba790605ab6ed398b091086c10b2fa"
+# Load environment variables
+if [ -f .env ]; then
+    source .env
+fi
+
+# Check if SONAR_TOKEN is set
+if [ -z "$SONAR_TOKEN" ]; then
+    echo "Error: SONAR_TOKEN environment variable is not set"
+    echo "Please set it in .env file or export it in your environment"
+    exit 1
+fi
+
+# Project key
 PROJECT_KEY="EyaJrah_flappy_clone"
 
 # Get issues (vulnerabilities, code smells, etc.)
