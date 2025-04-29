@@ -3,10 +3,10 @@ name: SonarCloud Scan
 on:
   push:
     branches:
-      - main  # Trigger scan on main branch push
+      - main
   pull_request:
     branches:
-      - main  # Trigger scan on PR to main branch
+      - main
 
 jobs:
   sonarcloud:
@@ -15,20 +15,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         
-      - name: Set up Node.js (or JDK, if your project requires it)
-        uses: actions/setup-node@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: '14'  # Specify the Node.js version your project uses
+          node-version: '18'
 
       - name: Install dependencies
-        run: npm install  # Replace this with the command to install dependencies for your project
+        run: npm install
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v1
-        with:
-          sonar-project-key: 'EyaJrah_flappy_clone'  # Replace with your actual SonarCloud project key
-          sonar-organization: 'eyajrah'  # Replace with your organization
+        uses: SonarSource/sonarcloud-github-action@master
         env:
-          SONAR_TOKEN: ${{bcd810a63322199013877ea235618d09b477ad2f}}  # Use the token stored in GitHub secrets
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
