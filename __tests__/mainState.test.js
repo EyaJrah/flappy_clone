@@ -32,7 +32,8 @@ describe('Main State', () => {
           anchor: { setTo: jest.fn() },
           body: { gravity: { y: 0 } },
           angle: 0,
-          alive: true
+          alive: true,
+          inWorld: true
         })),
         text: jest.fn(),
         tween: jest.fn(() => ({
@@ -153,5 +154,99 @@ describe('Main State', () => {
     expect(state.score).toBe(1);
     expect(state.labelScore.text).toBe(1);
     expect(state.pipes.getFirstDead).toHaveBeenCalled();
+  });
+  
+  test('update handles bird out of world and collisions', () => {
+    // Setup
+    state.bird = {
+      inWorld: false,
+      angle: 0
+    };
+    state.restartGame = jest.fn();
+    
+    // Test bird out of world
+    state.update();
+    expect(state.restartGame).toHaveBeenCalled();
+    
+    // Test bird in world with collision
+    state.bird.inWorld = true;
+    state.update();
+    expect(state.game.physics.arcade.overlap).toHaveBeenCalledWith(
+      state.bird,
+      state.pipes,
+      state.hitPipe,
+      null,
+      state
+    );
+  });
+  
+  test('bird rotation in update', () => {
+    // Setup
+    state.bird = {
+      inWorld: true,
+      angle: 15
+    };
+    
+    // Execute
+    state.update();
+    
+    // Verify
+    expect(state.bird.angle).toBe(16);
+  });
+  
+  test('restartGame restarts the game state', () => {
+    state.restartGame();
+    expect(state.game.state.start).toHaveBeenCalledWith('main');
+  });
+  
+  test('addOnePipe creates and configures a pipe', () => {
+    // Setup
+    const mockPipe = {
+      reset: jest.fn(),
+      body: { velocity: { x: 0 } },
+      checkWorldBounds: false,
+      outOfBoundsKill: false
+    };
+    state.pipes = {
+      getFirstDead: jest.fn(() => mockPipe)
+    };
+    
+    // Execute
+    state.addOnePipe(400, 100);
+    
+    // Verify
+    expect(state.pipes.getFirstDead).toHaveBeenCalled();
+    expect(mockPipe.reset).toHaveBeenCalledWith(400, 100);
+    expect(mockPipe.body.velocity.x).toBe(-200);
+    expect(mockPipe.checkWorldBounds).toBe(true);
+    expect(mockPipe.outOfBoundsKill).toBe(true);
+  });
+  
+  test('module exports mainState in Node environment', () => {
+    const exported = require('../game');
+    expect(exported).toBe(mainState);
+  });
+  
+  test('module exports are handled correctly in browser environment', () => {
+    // Save original values
+    const originalModule = global.module;
+    const originalExports = global.exports;
+    const originalRequire = global.require;
+    
+    // Mock browser environment by removing Node.js globals
+    delete global.module;
+    delete global.exports;
+    delete global.require;
+    
+    // Clear the module cache to force re-execution
+    jest.resetModules();
+    
+    // Execute the module in browser environment
+    require('../game');
+    
+    // Restore globals
+    global.module = originalModule;
+    global.exports = originalExports;
+    global.require = originalRequire;
   });
 }); 
