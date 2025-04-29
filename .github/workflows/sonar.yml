@@ -1,0 +1,56 @@
+name: SonarCloud Scan
+
+on:
+  push:
+    branches:
+      - main
+     
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarcloud:
+    name: Analyze on SonarCloud
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Cache SonarScanner
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/work/_temp/sonar-scanner-cli-7.0.2.4839-Linux-X64
+          key: ${{ runner.os }}-sonar-scanner-7.0.2.4839
+          restore-keys: |
+            ${{ runner.os }}-sonar-scanner-
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v5.0.0
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.projectKey=EyaJrah_flappy_clone
+            -Dsonar.organization=eyajrah
+            -Dsonar.host.url=https://sonarcloud.io
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
