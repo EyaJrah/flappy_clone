@@ -16,7 +16,28 @@
  * - Smooth bird rotation animations
  */
 
-var mainState = {
+// Constants for game configuration
+const GAME_CONFIG = {
+    width: 400,
+    height: 490,
+    birdStartX: 100,
+    birdStartY: 245,
+    birdGravity: 1000,
+    birdJumpVelocity: -350,
+    birdMaxAngle: 20,
+    birdRotationSpeed: 1,
+    pipeVelocity: -200,
+    pipeSpawnInterval: 1500,
+    pipeCount: 20,
+    pipeRows: 8,
+    pipeGapMin: 1,
+    pipeGapMax: 5,
+    pipeSpacing: 60,
+    pipeOffset: 10
+};
+
+// Game state object
+const mainState = {
     /**
      * Preload game assets and set initial configurations
      * Loads bird and pipe images, sets background color
@@ -25,8 +46,12 @@ var mainState = {
         if (!this.game) return;
         
         this.game.stage.backgroundColor = '#FF6A5E';
+        
+        // Use base64 encoded images for simplicity
         this.bird = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEXSvicAAABogyUZAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
         this.pipe = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEV0vy4AAADnrrHQAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
+        
+        // Load game assets
         this.game.load.image('bird', this.bird);  
         this.game.load.image('pipe', this.pipe); 
     },
@@ -38,34 +63,37 @@ var mainState = {
     create: function() { 
         if (!this.game) return;
         
+        // Initialize physics system
         this.game.physics.startSystem(Phaser.Physics.ARCADE);
 
+        // Create pipe group
         this.pipes = this.game.add.group();
         if (this.pipes) {
             this.pipes.enableBody = true;
-            this.pipes.createMultiple(20, 'pipe');
+            this.pipes.createMultiple(GAME_CONFIG.pipeCount, 'pipe');
         }
         
-        this.timer = this.game.time.events.loop(1500, this.addRowOfPipes, this);           
+        // Set up pipe spawning timer
+        this.timer = this.game.time.events.loop(GAME_CONFIG.pipeSpawnInterval, this.addRowOfPipes, this);           
 
-        this.bird = this.game.add.sprite(100, 245, 'bird');
+        // Create bird sprite
+        this.bird = this.game.add.sprite(GAME_CONFIG.birdStartX, GAME_CONFIG.birdStartY, 'bird');
         if (this.bird) {
             this.game.physics.arcade.enable(this.bird);
-            this.bird.body.gravity.y = 1000; 
+            this.bird.body.gravity.y = GAME_CONFIG.birdGravity; 
             this.bird.anchor.setTo(-0.2, 0.5);
             this.bird.alive = true;
         }
  
-        var spaceKey = this.game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+        // Set up keyboard controls
+        const spaceKey = this.game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
         if (spaceKey) {
             spaceKey.onDown.add(this.jump, this);
         }
 
+        // Initialize score
         this.score = 0;
         this.labelScore = this.game.add.text(20, 20, "0", { font: "30px Arial", fill: "#ffffff" });  
-
-        // Add the jump sound
-        this.jumpSound = this.game.add.audio('jump');
     },
 
     /**
@@ -75,15 +103,17 @@ var mainState = {
     update: function() {
         if (!this.bird || !this.pipes) return;
         
+        // Check if bird is out of bounds
         if (this.bird.inWorld === false) {
             this.restartGame(); 
         }
 
+        // Check for collisions
         this.game.physics.arcade.overlap(this.bird, this.pipes, this.hitPipe, null, this); 
 
         // Rotate the bird    
-        if (this.bird.angle < 20) {
-            this.bird.angle += 1;
+        if (this.bird.angle < GAME_CONFIG.birdMaxAngle) {
+            this.bird.angle += GAME_CONFIG.birdRotationSpeed;
         }
     },
 
@@ -94,10 +124,11 @@ var mainState = {
     jump: function() {
         if (!this.bird || this.bird.alive === false) return;
 
-        this.bird.body.velocity.y = -350;
+        // Set bird velocity for jump
+        this.bird.body.velocity.y = GAME_CONFIG.birdJumpVelocity;
 
         // Jump animation
-        this.game.add.tween(this.bird).to({angle: -20}, 100).start();
+        this.game.add.tween(this.bird).to({angle: -GAME_CONFIG.birdMaxAngle}, 100).start();
     },
 
     /**
@@ -140,11 +171,11 @@ var mainState = {
     addOnePipe: function(x, y) {
         if (!this.pipes) return;
         
-        var pipe = this.pipes.getFirstDead();
+        const pipe = this.pipes.getFirstDead();
         if (!pipe) return;
 
         pipe.reset(x, y);
-        pipe.body.velocity.x = -200;  
+        pipe.body.velocity.x = GAME_CONFIG.pipeVelocity;  
         pipe.checkWorldBounds = true;
         pipe.outOfBoundsKill = true;
     },
@@ -156,14 +187,17 @@ var mainState = {
     addRowOfPipes: function() {
         if (!this.labelScore) return;
         
-        var hole = Math.floor(Math.random() * 5) + 1;
+        // Generate random gap position
+        const hole = Math.floor(Math.random() * (GAME_CONFIG.pipeGapMax - GAME_CONFIG.pipeGapMin + 1)) + GAME_CONFIG.pipeGapMin;
         
-        for (var i = 0; i < 8; i++) {
+        // Create pipes for each row except the gap
+        for (let i = 0; i < GAME_CONFIG.pipeRows; i++) {
             if (i !== hole && i !== hole + 1) {
-                this.addOnePipe(400, i * 60 + 10);
+                this.addOnePipe(GAME_CONFIG.width, i * GAME_CONFIG.pipeSpacing + GAME_CONFIG.pipeOffset);
             }
         }
     
+        // Update score
         this.score += 1;
         this.labelScore.text = this.score;  
     },
@@ -174,7 +208,7 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = mainState;
 } else {
     // Only initialize the game in browser environment
-    var game = new Phaser.Game(400, 490, Phaser.AUTO, 'game');
+    const game = new Phaser.Game(GAME_CONFIG.width, GAME_CONFIG.height, Phaser.AUTO, 'game');
     game.state.add('main', mainState);
     game.state.start('main');
 } 

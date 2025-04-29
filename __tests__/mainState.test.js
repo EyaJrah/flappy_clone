@@ -30,7 +30,7 @@ describe('Main State', () => {
         })),
         sprite: jest.fn(() => ({
           anchor: { setTo: jest.fn() },
-          body: { gravity: { y: 0 } },
+          body: { gravity: { y: 0 }, velocity: { y: 0, x: 0 } },
           angle: 0,
           alive: true,
           inWorld: true
@@ -77,6 +77,14 @@ describe('Main State', () => {
     expect(game.load.image).toHaveBeenCalledWith('pipe', expect.any(String));
   });
   
+  test('preload does nothing if game is not defined', () => {
+    state.game = undefined;
+    state.preload();
+    
+    // Should not throw an error
+    expect(true).toBe(true);
+  });
+  
   test('create initializes physics and game objects', () => {
     state.create();
     
@@ -84,6 +92,14 @@ describe('Main State', () => {
     expect(game.add.group).toHaveBeenCalled();
     expect(game.add.sprite).toHaveBeenCalledWith(100, 245, 'bird');
     expect(game.physics.arcade.enable).toHaveBeenCalled();
+  });
+  
+  test('create does nothing if game is not defined', () => {
+    state.game = undefined;
+    state.create();
+    
+    // Should not throw an error
+    expect(true).toBe(true);
   });
   
   test('jump sets bird velocity when alive', () => {
@@ -116,6 +132,17 @@ describe('Main State', () => {
     expect(state.bird.body.velocity.y).toBe(0);
   });
   
+  test('jump does nothing when bird is not defined', () => {
+    // Setup
+    state.bird = undefined;
+    
+    // Execute
+    state.jump();
+    
+    // Should not throw an error
+    expect(true).toBe(true);
+  });
+  
   test('hitPipe marks bird as dead and stops pipes', () => {
     // Setup
     state.bird = { alive: true };
@@ -132,6 +159,40 @@ describe('Main State', () => {
     expect(state.bird.alive).toBe(false);
     expect(state.game.time.events.remove).toHaveBeenCalledWith(state.timer);
     expect(state.pipes.forEachAlive).toHaveBeenCalled();
+  });
+  
+  test('hitPipe does nothing when bird is already dead', () => {
+    // Setup
+    state.bird = { alive: false };
+    state.pipes = {
+      forEachAlive: jest.fn()
+    };
+    state.timer = {};
+    state.game = game;
+    
+    // Execute
+    state.hitPipe();
+    
+    // Verify
+    expect(state.bird.alive).toBe(false);
+    expect(state.game.time.events.remove).not.toHaveBeenCalled();
+    expect(state.pipes.forEachAlive).not.toHaveBeenCalled();
+  });
+  
+  test('hitPipe does nothing when bird is not defined', () => {
+    // Setup
+    state.bird = undefined;
+    state.pipes = {
+      forEachAlive: jest.fn()
+    };
+    state.timer = {};
+    state.game = game;
+    
+    // Execute
+    state.hitPipe();
+    
+    // Should not throw an error
+    expect(true).toBe(true);
   });
   
   test('addRowOfPipes creates pipes and increases score', () => {
@@ -156,6 +217,27 @@ describe('Main State', () => {
     expect(state.pipes.getFirstDead).toHaveBeenCalled();
   });
   
+  test('addRowOfPipes does nothing when labelScore is not defined', () => {
+    // Setup
+    state.pipes = {
+      getFirstDead: jest.fn(() => ({
+        reset: jest.fn(),
+        body: { velocity: { x: 0 } },
+        checkWorldBounds: false,
+        outOfBoundsKill: false
+      }))
+    };
+    state.score = 0;
+    state.labelScore = undefined;
+    
+    // Execute
+    state.addRowOfPipes();
+    
+    // Verify
+    expect(state.score).toBe(0);
+    expect(state.pipes.getFirstDead).not.toHaveBeenCalled();
+  });
+  
   test('update handles bird out of world and collisions', () => {
     // Setup
     state.bird = {
@@ -177,6 +259,48 @@ describe('Main State', () => {
     
     // Verify
     expect(state.restartGame).toHaveBeenCalled();
+  });
+  
+  test('update does nothing when bird is not defined', () => {
+    // Setup
+    state.bird = undefined;
+    state.pipes = {};
+    state.game = {
+      physics: {
+        arcade: {
+          overlap: jest.fn()
+        }
+      }
+    };
+    state.restartGame = jest.fn();
+    
+    // Execute
+    state.update();
+    
+    // Verify
+    expect(state.restartGame).not.toHaveBeenCalled();
+  });
+  
+  test('update does nothing when pipes is not defined', () => {
+    // Setup
+    state.bird = {
+      inWorld: true,
+      angle: 0
+    };
+    state.pipes = undefined;
+    state.game = {
+      physics: {
+        arcade: {
+          overlap: jest.fn()
+        }
+      }
+    };
+    
+    // Execute
+    state.update();
+    
+    // Should not throw an error
+    expect(true).toBe(true);
   });
   
   test('bird rotation in update', () => {
@@ -206,6 +330,17 @@ describe('Main State', () => {
     expect(state.game.state.start).toHaveBeenCalledWith('main');
   });
   
+  test('restartGame does nothing when game is not defined', () => {
+    // Setup
+    state.game = undefined;
+    
+    // Execute
+    state.restartGame();
+    
+    // Should not throw an error
+    expect(true).toBe(true);
+  });
+  
   test('addOnePipe creates and configures a pipe', () => {
     // Setup
     const mockPipe = {
@@ -229,28 +364,28 @@ describe('Main State', () => {
     expect(mockPipe.outOfBoundsKill).toBe(true);
   });
   
-  test('hitPipe does nothing when bird is already dead', () => {
+  test('addOnePipe does nothing when pipes is not defined', () => {
     // Setup
-    state.bird = { alive: false };
+    state.pipes = undefined;
+    
+    // Execute
+    state.addOnePipe(400, 100);
+    
+    // Should not throw an error
+    expect(true).toBe(true);
+  });
+  
+  test('addOnePipe does nothing when no dead pipes are available', () => {
+    // Setup
     state.pipes = {
-      forEachAlive: jest.fn()
-    };
-    state.timer = {};
-    state.game = {
-      time: {
-        events: {
-          remove: jest.fn()
-        }
-      }
+      getFirstDead: jest.fn(() => null)
     };
     
     // Execute
-    state.hitPipe();
+    state.addOnePipe(400, 100);
     
     // Verify
-    expect(state.bird.alive).toBe(false);
-    expect(state.game.time.events.remove).not.toHaveBeenCalled();
-    expect(state.pipes.forEachAlive).not.toHaveBeenCalled();
+    expect(state.pipes.getFirstDead).toHaveBeenCalled();
   });
   
   test('hitPipe stops all pipes when bird hits a pipe', () => {
