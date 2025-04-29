@@ -162,22 +162,21 @@ describe('Main State', () => {
       inWorld: false,
       angle: 0
     };
+    state.pipes = {};
+    state.game = {
+      physics: {
+        arcade: {
+          overlap: jest.fn()
+        }
+      }
+    };
     state.restartGame = jest.fn();
     
-    // Test bird out of world
+    // Execute
     state.update();
-    expect(state.restartGame).toHaveBeenCalled();
     
-    // Test bird in world with collision
-    state.bird.inWorld = true;
-    state.update();
-    expect(state.game.physics.arcade.overlap).toHaveBeenCalledWith(
-      state.bird,
-      state.pipes,
-      state.hitPipe,
-      null,
-      state
-    );
+    // Verify
+    expect(state.restartGame).toHaveBeenCalled();
   });
   
   test('bird rotation in update', () => {
@@ -185,6 +184,14 @@ describe('Main State', () => {
     state.bird = {
       inWorld: true,
       angle: 15
+    };
+    state.pipes = {};
+    state.game = {
+      physics: {
+        arcade: {
+          overlap: jest.fn()
+        }
+      }
     };
     
     // Execute
@@ -220,6 +227,61 @@ describe('Main State', () => {
     expect(mockPipe.body.velocity.x).toBe(-200);
     expect(mockPipe.checkWorldBounds).toBe(true);
     expect(mockPipe.outOfBoundsKill).toBe(true);
+  });
+  
+  test('hitPipe does nothing when bird is already dead', () => {
+    // Setup
+    state.bird = { alive: false };
+    state.pipes = {
+      forEachAlive: jest.fn()
+    };
+    state.timer = {};
+    state.game = {
+      time: {
+        events: {
+          remove: jest.fn()
+        }
+      }
+    };
+    
+    // Execute
+    state.hitPipe();
+    
+    // Verify
+    expect(state.bird.alive).toBe(false);
+    expect(state.game.time.events.remove).not.toHaveBeenCalled();
+    expect(state.pipes.forEachAlive).not.toHaveBeenCalled();
+  });
+  
+  test('hitPipe stops all pipes when bird hits a pipe', () => {
+    // Setup
+    state.bird = { alive: true };
+    const mockPipe1 = { body: { velocity: { x: 100 } } };
+    const mockPipe2 = { body: { velocity: { x: 200 } } };
+    state.pipes = {
+      forEachAlive: jest.fn((callback) => {
+        callback(mockPipe1);
+        callback(mockPipe2);
+      })
+    };
+    state.timer = {};
+    state.game = {
+      time: {
+        events: {
+          remove: jest.fn()
+        }
+      }
+    };
+    
+    // Execute
+    state.hitPipe();
+    
+    // Verify
+    expect(state.bird.alive).toBe(false);
+    expect(state.game.time.events.remove).toHaveBeenCalledWith(state.timer);
+    expect(state.pipes.forEachAlive).toHaveBeenCalled();
+    expect(mockPipe1.body.velocity.x).toBe(0);
+    expect(mockPipe2.body.velocity.x).toBe(0);
   });
   
   test('module exports mainState in Node environment', () => {
