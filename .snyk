@@ -1,0 +1,34 @@
+# Snyk (https://snyk.io) policy file
+version: v1.25.0
+
+# Ignore specific vulnerabilities 
+ignore:
+  'npm:phaser:*':
+    - '*':
+        reason: 'Game mechanics only, no sensitive data handling'
+        expires: 2025-01-01T00:00:00.000Z
+
+# Patch specific vulnerabilities
+patch: {}
+
+# Configure Snyk to look for high severity vulnerabilities
+exclude:
+  global:
+    - test/**
+    - coverage/**
+    - node_modules/**
+
+# Custom rules
+rules:
+  - id: avoid-dangerous-functions
+    severity: high
+    message: Avoid using dangerous functions
+    patterns:
+      - pattern: eval\(
+      - pattern: Function\(
+      - pattern: setTimeout\([^,]+,\s*['"][^'"]+['"]\)
+      - pattern: setInterval\([^,]+,\s*['"][^'"]+['"]\)
+
+# Snyk test configuration
+test:
+  severity-threshold: high 
