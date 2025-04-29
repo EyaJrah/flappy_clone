@@ -19,7 +19,10 @@
 var game = new Phaser.Game(400, 490, Phaser.AUTO, 'game');
 
 var mainState = {
-
+    /**
+     * Preload game assets and set initial configurations
+     * Loads bird and pipe images, sets background color
+     */
     preload: function() { 
         game.stage.backgroundColor = '#FF6A5E';
         bird = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEXSvicAAABogyUZAAAAGUlEQVR4AWP4DwYHMOgHDEDASCN6lMYV7gChf3AJ/eB/pQAAAABJRU5ErkJggg==";
@@ -28,6 +31,10 @@ var mainState = {
         game.load.image('pipe', pipe); 
     },
 
+    /**
+     * Create game objects and initialize the game state
+     * Sets up physics, creates bird and pipes, initializes controls and score
+     */
     create: function() { 
         game.physics.startSystem(Phaser.Physics.ARCADE);
 
@@ -53,6 +60,10 @@ var mainState = {
         this.jumpSound = this.game.add.audio('jump');
     },
 
+    /**
+     * Update game state on each frame
+     * Handles collisions, bird rotation, and game over conditions
+     */
     update: function() {
         if (this.bird.inWorld == false)
             this.restartGame(); 
@@ -64,6 +75,10 @@ var mainState = {
             		this.bird.angle += 1;
     },
 
+    /**
+     * Handle bird jump action
+     * Controls bird velocity and rotation for jump animation
+     */
     jump: function() {
         // If the bird is dead, he can't jump
         if (this.bird.alive == false)
@@ -76,6 +91,10 @@ var mainState = {
 
     },
 
+    /**
+     * Handle pipe collision
+     * Manages game state when bird hits a pipe
+     */
     hitPipe: function() {
         // If the bird has already hit a pipe, we have nothing to do
         if (this.bird.alive == false)
@@ -93,10 +112,19 @@ var mainState = {
         }, this);
     },
 
+    /**
+     * Restart the game
+     * Resets game state to initial conditions
+     */
     restartGame: function() {
         game.state.start('main');
     },
 
+    /**
+     * Add a single pipe to the game
+     * @param {number} x - The x position of the pipe
+     * @param {number} y - The y position of the pipe
+     */
     addOnePipe: function(x, y) {
         var pipe = this.pipes.getFirstDead();
 
@@ -106,6 +134,10 @@ var mainState = {
         pipe.outOfBoundsKill = true;
     },
 
+    /**
+     * Add a row of pipes with a random gap
+     * Increases score when pipes are added
+     */
     addRowOfPipes: function() {
         var hole = Math.floor(Math.random()*5)+1;
         
