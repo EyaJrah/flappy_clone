@@ -1,0 +1,42 @@
+version: 2
+scanners:
+  - type: filesystem
+    ignore:
+      - "node_modules/**"
+      - "**/*.test.js"
+      - "**/*.spec.js"
+      - "**/coverage/**"
+      - "**/dist/**"
+      - "**/build/**"
+    severity:
+      - CRITICAL
+      - HIGH
+    exit-code: 1
+    timeout: 30m
+    skip-dirs:
+      - "node_modules"
+      - "coverage"
+      - "dist"
+      - "build"
+    skip-files:
+      - "**/*.test.js"
+      - "**/*.spec.js"
+    vuln-type:
+      - os
+      - library
+      - secret
+      - config
+
+  - type: package
+    ignore:
+      - "node_modules/**"
+    severity:
+      - CRITICAL
+      - HIGH
+    exit-code: 1
+    timeout: 30m
+    skip-dirs:
+      - "node_modules"
+    vuln-type:
+      - library
+      - os 

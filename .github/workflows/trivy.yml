@@ -1,0 +1,54 @@
+name: Trivy Security Scan
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight
+
+jobs:
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability and secret scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'LOW,MEDIUM,HIGH,CRITICAL'
+          scanners: 'vuln,secret'
+          skip-dirs: 'node_modules,coverage,dist,build'
+          skip-files: '**/*.test.js,**/*.spec.js'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Trivy dependency scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'pkg'
+          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-deps.sarif'
+          severity: 'LOW,MEDIUM,HIGH,CRITICAL'
+          skip-dirs: 'node_modules'
+
+      - name: Upload Trivy dependency scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-deps.sarif' 
